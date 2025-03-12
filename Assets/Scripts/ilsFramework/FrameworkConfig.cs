@@ -132,7 +132,16 @@ namespace ilsFramework
 
         public int GetManagerUpdateIndex(Type mangerType)
         {
-            return Dict_UpdateSort.GetValueOrDefault(mangerType.FullName, -1);
+            if (Dict_UpdateSort.TryGetValue(mangerType.FullName, out var value))
+            {
+                return value;
+            }
+            else
+            {
+                ManagersUpdateSort.Add(new ReadOnlyString(mangerType.FullName));
+                return ManagersUpdateSort.Count;
+            }
+
         }
         
         [Serializable]
