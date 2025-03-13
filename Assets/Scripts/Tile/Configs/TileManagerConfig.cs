@@ -15,6 +15,8 @@ public class TileManagerConfig : ConfigScriptObject
     
     public override string ConfigName => "TileManagerConfig";
 
+    public const int TileSystemID = -1;
+    
     public GameObject UnityTileHandler;
     
     [LabelText("地图大小")]
