@@ -21,4 +21,8 @@ public class TileManagerConfig : ConfigScriptObject
     public Vector2Int MapSize = new Vector2Int(10, 10);
     
     public bool AutoUpdateTileConfigs = true;
+
+    public LayerMask TileLayerMask;
+    
+    public ContactFilter2D TileContactFilter;
 }

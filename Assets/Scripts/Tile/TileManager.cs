@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using ilsFramework;
 using Sirenix.OdinInspector;
 using UnityEngine;
@@ -25,17 +26,18 @@ public class TileManager : ManagerSingleton<TileManager>,IManager,IAssemblyForea
 
     private BaseTile[,] tiles;
     private RectInt tilesRange;
-    
-    
-    
-    
-    
+
+
+    private List<Collider2D> areaCheckBuffer;
+    private List<Vector2Int> areaGetTileBuffer;
     
     public void Init()
     {
         _managerConfig = Config.GetConfig<TileManagerConfig>();
         _tileConfig = Config.GetConfig<TileConfig>();
 
+        areaCheckBuffer = new List<Collider2D>();
+        areaGetTileBuffer = new List<Vector2Int>();
         InitTileGrids();
     }
     
@@ -68,12 +70,12 @@ public class TileManager : ManagerSingleton<TileManager>,IManager,IAssemblyForea
 
     public void LateUpdate()
     {
-       
+
     }
 
     public void FixedUpdate()
     {
-      
+        RuleTile<>
     }
 
     public void OnDestroy()
@@ -88,7 +90,7 @@ public class TileManager : ManagerSingleton<TileManager>,IManager,IAssemblyForea
 
     public void OnDrawGizmosSelected()
     {
-     
+        
     }
 
     /// <summary>
@@ -127,6 +129,15 @@ public class TileManager : ManagerSingleton<TileManager>,IManager,IAssemblyForea
         
     }
 
+
+    #region 获取Tile相关（重载与范围获取）
+
+        /// <summary>
+    /// 尝试获取指定坐标位置的Tile
+    /// </summary>
+    /// <param name="position">指定的格子坐标</param>
+    /// <param name="tile">对应的Tile</param>
+    /// <returns></returns>
     public bool TryGetTile(Vector2Int position, out BaseTile tile)
     {
         if (!CheckPositionInGrid(position))
@@ -138,8 +149,137 @@ public class TileManager : ManagerSingleton<TileManager>,IManager,IAssemblyForea
         return true;
     }
     
+    /// <summary>
+    /// 尝试获取指定世界坐标位置的Tile
+    /// </summary>
+    /// <param name="worldPosition">世界坐标</param>
+    /// <param name="tile">对应的Tile</param>
+    /// <returns></returns>
+    public bool TryGetTile(Vector2 worldPosition, out BaseTile tile)
+    {
+        return TryGetTile(GetTilePosition(worldPosition), out tile);
+    }
     
+    /// <summary>
+    /// 尝试获取指定格子坐标位置的指定类型Tile
+    /// </summary>
+    /// <param name="position">指定的格子坐标</param>
+    /// <param name="tile">对应的Tile</param>
+    /// <typeparam name="T">指定的Tile类型</typeparam>
+    /// <returns></returns>
+    public bool TryGetTile<T>(Vector2Int position, out T tile) where T : BaseTile
+    {
+        if (TryGetTile(position, out var _tile) && _tile is T result)
+        {
+            tile = result;
+            return true;
+        }
+        tile = null;
+        return false;
+    }
+    /// <summary>
+    /// 尝试获取指定世界坐标位置的指定类型Tile
+    /// </summary>
+    /// <param name="worldPosition">世界坐标</param>
+    /// <param name="tile">对应的Tile</param>
+    /// <typeparam name="T">指定的Tile类型</typeparam>
+    /// <returns></returns>
+    public bool TryGetTile<T>(Vector2 worldPosition, out T tile) where T : BaseTile
+    {
+        return TryGetTile(GetTilePosition(worldPosition), out tile);
+    }
+    /// <summary>
+    /// 尝试获取指定格子坐标位置的指定类型Tile
+    /// </summary>
+    /// <param name="position">指定的格子坐标</param>
+    /// <param name="targetType">指定的Tile类型</param>
+    /// <param name="tile">对应的Tile</param>
+    /// <returns>是否找到</returns>
+    public bool TryGetTile(Vector2Int position, Type targetType, out BaseTile tile)
+    {
+        if (CheckTypeIsTileType(targetType) && CheckPositionInGrid(position))
+        {
+            tile = tiles[position.x, position.y];
+            if (tile.GetType()== targetType)
+            {
+                return true;
+            }
+        }
+
+        tile = null;
+        return false;
+    }
+    /// <summary>
+    /// 尝试获取指定世界坐标位置的指定类型Tile
+    /// </summary>
+    /// <param name="worldPosition">世界坐标</param>
+    /// <param name="targetType">对应的Tile</param>
+    /// <param name="tile">指定的Tile类型</param>
+    /// <returns>是否找到</returns>
+    public bool TryGetTile(Vector2 worldPosition, Type targetType, out BaseTile tile)
+    {
+        return TryGetTile(GetTilePosition(worldPosition), targetType, out tile);
+    }
     
+    /// <summary>
+    /// 尝试获取在碰撞箱范围内所有的Tile
+    /// </summary>
+    /// <param name="areaCollider">所指定的Collder2d</param>
+    /// <param name="areaTiles">搜索结果</param>
+    public void GetAreaTiles(Collider2D areaCollider,List<BaseTile> areaTiles)
+    {
+        areaCheckBuffer.Clear();
+        areaGetTileBuffer.Clear();
+        GetCoveredCells(areaCollider,areaGetTileBuffer,areaCheckBuffer);
+        foreach (var vector2Int in areaGetTileBuffer)
+        {
+            if (TryGetTile(vector2Int, out var tile))
+            {
+                areaTiles.Add(tile);
+            }
+        }
+    }
+    /// <summary>
+    /// 尝试获取在碰撞箱范围内所有的Tile,并指定Tile类型
+    /// </summary>
+    /// <param name="areaCollider">所指定的Collider2d</param>
+    /// <param name="areaTiles">搜索结果</param>
+    /// <typeparam name="T">指定的Tile类型</typeparam>
+    public void GetAreaTiles<T>(Collider2D areaCollider, List<T> areaTiles) where T : BaseTile
+    {
+        areaCheckBuffer.Clear();
+        areaGetTileBuffer.Clear();
+        GetCoveredCells(areaCollider,areaGetTileBuffer,areaCheckBuffer);
+        foreach (var vector2Int in areaGetTileBuffer)
+        {
+            if (TryGetTile<T>(vector2Int, out var tile))
+            {
+                areaTiles.Add(tile);
+            }
+        }
+    }
+    /// <summary>
+    /// 尝试获取在碰撞箱范围内所有的Tile,并指定Tile类型
+    /// </summary>
+    /// <param name="areaCollider">所指定的Collider2d</param>
+    /// <param name="targetType">指定的Tile类型</param>
+    /// <param name="areaTiles">搜索结果</param>
+    public void GetAreaTiles(Collider2D areaCollider,Type targetType ,List<BaseTile> areaTiles)
+    {
+        areaCheckBuffer.Clear();
+        areaGetTileBuffer.Clear();
+        GetCoveredCells(areaCollider,areaGetTileBuffer,areaCheckBuffer);
+        foreach (var vector2Int in areaGetTileBuffer)
+        {
+            if (TryGetTile(vector2Int,targetType, out var tile))
+            {
+                areaTiles.Add(tile);
+            }
+        }
+    }
+
+    #endregion
+
     
     private bool TryGetTileProperty<T>(out BaseTileProperty tileProperty) where T : BaseTile
     {
@@ -153,8 +293,14 @@ public class TileManager : ManagerSingleton<TileManager>,IManager,IAssemblyForea
 
     private bool TryGetTileID(Type type, out int id)
     {
-        return _tileConfig.TryGetTileID(type, out id);
+        return TileIDMap.TryGetValue(type, out id);
     }
+
+    private bool CheckTypeIsTileType(Type type)
+    {
+        return TileIDMap.ContainsKey(type);
+    }
+    
 
     private bool InnerCreateTile(Type type, out BaseTile tile)
     {
@@ -191,6 +337,7 @@ public class TileManager : ManagerSingleton<TileManager>,IManager,IAssemblyForea
         if (InnerSetTile(type,position,belongsToID, out BaseTile tile))
         {
             //程序化的音效什么的
+            SetTileRender();
         }
     }
 
@@ -218,5 +365,72 @@ public class TileManager : ManagerSingleton<TileManager>,IManager,IAssemblyForea
         
     }
     
+    #endregion
+
+    #region 方块渲染相关
+
+    public void SetTileRender()
+    {
+        
+    }
+
+    #endregion
+
+    #region 格子相关
+
+    public Vector2Int GetTilePosition(Vector2 position)
+    {
+        var v = grid.WorldToCell(position);
+        return new Vector2Int(v.x,v.y);
+    }
+    
+    
+    // 检测指定碰撞体覆盖的所有格子
+    public void GetCoveredCells(Collider2D targetCollider,List<Vector2Int> result,List<Collider2D> checkBuffer)
+    {
+        if (result == null) return;
+        
+        // 获取包围盒范围
+        Bounds bounds = targetCollider.bounds;
+        int startX = Mathf.FloorToInt(bounds.min.x);
+        int startY = Mathf.FloorToInt(bounds.min.y);
+        int endX = Mathf.FloorToInt(bounds.max.x - 1e-6f); // 避免浮点误差
+        int endY = Mathf.FloorToInt(bounds.max.y - 1e-6f);
+        
+        Vector2 cellSize = new Vector2(1, 1);
+
+        // 遍历每个格子
+        for (int x = startX; x <= endX; x++)
+        {
+            for (int y = startY; y <= endY; y++)
+            {
+                Vector2 cellCenter = new Vector2(x + 0.5f, y + 0.5f);
+                if (IsCellOverlapping(targetCollider, cellCenter, cellSize,checkBuffer))
+                {
+                    result.Add(new Vector2Int(x, y));
+                }
+            }
+        }
+    }
+
+    // 检测单个格子是否与碰撞体重叠
+    private bool IsCellOverlapping(Collider2D targetCollider, Vector2 center, Vector2 size,List<Collider2D> checkBuffer)
+    {
+        checkBuffer.Clear();
+        Physics2D.OverlapBox(
+            center, 
+            size, 
+            0f, 
+            _managerConfig.TileContactFilter, 
+            checkBuffer
+        );
+        
+        foreach (var collider in checkBuffer)
+        {
+            if (collider == targetCollider) return true;
+        }
+        return false;
+    }
+
     #endregion
 }
