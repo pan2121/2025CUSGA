@@ -4,8 +4,10 @@ using System.Collections.Generic;
 using System.Linq;
 using ilsFramework;
 using Sirenix.OdinInspector;
+using Tiles;
 using UnityEngine;
 using UnityEngine.Tilemaps;
+using Utils;
 using Object = UnityEngine.Object;
 
 public class TileManager : ManagerSingleton<TileManager>,IManager,IAssemblyForeach
@@ -31,6 +33,9 @@ public class TileManager : ManagerSingleton<TileManager>,IManager,IAssemblyForea
     private List<Collider2D> areaCheckBuffer;
     private List<Vector2Int> areaGetTileBuffer;
     
+    //用于记录对应玩家的得分
+    private Dictionary<int, float> scoreCollection;
+    
     public void Init()
     {
         _managerConfig = Config.GetConfig<TileManagerConfig>();
@@ -38,6 +43,9 @@ public class TileManager : ManagerSingleton<TileManager>,IManager,IAssemblyForea
 
         areaCheckBuffer = new List<Collider2D>();
         areaGetTileBuffer = new List<Vector2Int>();
+        
+        scoreCollection = new Dictionary<int, float>();
+        
         InitTileGrids();
     }
     
@@ -75,7 +83,7 @@ public class TileManager : ManagerSingleton<TileManager>,IManager,IAssemblyForea
 
     public void FixedUpdate()
     {
-    //    RuleTile<>
+
     }
 
     public void OnDestroy()
@@ -126,7 +134,7 @@ public class TileManager : ManagerSingleton<TileManager>,IManager,IAssemblyForea
     /// </summary>
     private void GenerateTiles()
     {
-        
+
     }
 
 
@@ -331,16 +339,29 @@ public class TileManager : ManagerSingleton<TileManager>,IManager,IAssemblyForea
         return false;
     }
 
-
+    /// <summary>
+    /// 放置一个新的方块，使用此方法会直接覆盖原有Tile，不会触发原有Tile的破坏相关函数
+    /// </summary>
+    /// <param name="type"></param>
+    /// <param name="position"></param>
+    /// <param name="belongsToID"></param>
     public void SetTile(Type type, Vector2Int position, int belongsToID)
     {
         if (InnerSetTile(type,position,belongsToID, out BaseTile tile))
         {
             //程序化的音效什么的
             SetTileRender();
+            
+            //检查合并
+            CheckTileCanMerge(position);
         }
     }
-
+    /// <summary>
+    /// 替换一个新的方块，会先触发原有Tile的破坏相关函数
+    /// </summary>
+    /// <param name="type"></param>
+    /// <param name="position"></param>
+    /// <param name="belongsToID"></param>
     public void ReplaceTile(Type type, Vector2Int position, int belongsToID)
     {
         if (!CheckPositionInGrid(position))
@@ -361,6 +382,20 @@ public class TileManager : ManagerSingleton<TileManager>,IManager,IAssemblyForea
     /// </summary>
     /// <param name="position"></param>
     public void DestroyTile(Vector2Int position)
+    {
+        
+    }
+    /// <summary>
+    /// 对方块造成伤害
+    /// </summary>
+    /// <param name="position"></param>
+    /// <param name="damage"></param>
+    public void ApplyDamageToTile(Vector2Int position, int damage)
+    {
+        
+    }
+
+    private void CalulateDamageToTile(Vector2Int position, int damage)
     {
         
     }
@@ -430,6 +465,213 @@ public class TileManager : ManagerSingleton<TileManager>,IManager,IAssemblyForea
             if (collider == targetCollider) return true;
         }
         return false;
+    }
+
+    #endregion
+
+
+    #region 方块合成相关
+
+    public void CheckTileCanMerge(Vector2Int lastSetTilePosition)
+    {
+        if (!TryGetTile(lastSetTilePosition, out var lastTile))
+        {
+            return;
+        }
+        
+        ReInitScoreCollection();
+        //检查行
+        //满足条件后直接返回
+        if (CheckRowIsFull(lastSetTilePosition.y))
+        {
+            for (int i = 0; i < tiles.GetLength(0); i++)
+            {
+                Vector2Int position = new Vector2Int(i,lastSetTilePosition.y);
+                if (TryGetTile(position,out var tile))
+                {
+                    CalculateEachTileScore(scoreCollection, tile, lastTile);
+                }
+            }
+            //计算完数值，发送合并事件给外界，并尝试清除对应行的tile
+            BroadcastTileMergeEvent();
+            return;
+        }
+                
+        //检查列
+        ReInitScoreCollection();
+        if (CheckColumnIsFull(lastSetTilePosition.x))
+        {
+            for (int i = 0; i < tiles.GetLength(1); i++)
+            {
+                Vector2Int position = new Vector2Int(lastSetTilePosition.x,i);
+                if (TryGetTile(position,out var tile))
+                {
+                    CalculateEachTileScore(scoreCollection, tile, lastTile);
+                }
+                
+                
+                //计算完数值，发送合并事件给外界，并尝试清除对应列的tile
+                BroadcastTileMergeEvent();
+                return;
+            }
+        }
+
+    }
+    /// <summary>
+    /// 检测输入的行是否在范围内
+    /// </summary>
+    /// <param name="row"></param>
+    /// <returns></returns>
+    private bool CheckInputRowValueIsVaild(int row)
+    {
+        return (tilesRange.xMin, tilesRange.xMax).Contains(row);
+    }
+    
+    /// <summary>
+    /// 检测指定行是否被填满（没有空气方块）
+    /// </summary>
+    /// <param name="row">对应行（y轴坐标）</param>
+    /// <returns>是否被填满</returns>
+    public bool CheckRowIsFull(int row)
+    {
+        if (!CheckInputRowValueIsVaild(row))
+        {
+            return false;
+        }
+        for (int i = 0; i < tiles.GetLength(0); i++)
+        {
+            Vector2Int position = new Vector2Int(i, row);
+            if (IsAir(position))
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// 检测输入的列是否在范围内
+    /// </summary>
+    /// <param name="column"></param>
+    /// <returns></returns>
+    private bool CheckInputColumnValueIsVaild(int column)
+    {
+        return (tilesRange.yMin, tilesRange.yMax).Contains(column);
+    }
+    
+    /// <summary>
+    /// 检查指定列是否被填满（没有空气方块）
+    /// </summary>
+    /// <param name="column">对应列（x轴坐标）</param>
+    /// <returns>是否被填满</returns>
+    public bool CheckColumnIsFull(int column)
+    {
+        if (!CheckInputColumnValueIsVaild(column))
+        {
+            return false;
+        }
+        for (int i = 0; i < tiles.GetLength(1); i++)
+        {
+            Vector2Int position = new Vector2Int(column, i);
+            if (IsAir(position))
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public bool IsAir(Vector2Int position)
+    {
+        return TryGetTile<AirTile>(position, out _);
+    }
+    
+    /// <summary>
+    /// 计算每个方块给玩家的能量
+    /// </summary>
+    /// <param name="scoreCollection"></param>
+    /// <param name="currectTile"></param>
+    /// <param name="lastTile"></param>
+    private void CalculateEachTileScore(Dictionary<int,float> scoreCollection,BaseTile currectTile,BaseTile lastTile)
+    {
+        //中立方块
+        if (currectTile.TileBelongToID == TileManagerConfig.TileSystemID)
+        {
+            //更具最后一个方块属于谁来判断
+            //中立则给两者都增加
+            if (lastTile.TileBelongToID == TileManagerConfig.TileSystemID)
+            {
+                foreach (var scoreCollectionKey in scoreCollection.Keys)
+                {
+                    scoreCollection[scoreCollectionKey] += CalculateTileCurrectScore(currectTile);
+                }
+            }
+            else
+            {
+                //给最后一个增加
+                if (scoreCollection.ContainsKey(lastTile.TileBelongToID))
+                {
+                    scoreCollection[lastTile.TileBelongToID] += CalculateTileCurrectScore(currectTile);
+                }
+            }
+        }
+        else
+        {
+            if (scoreCollection.ContainsKey(currectTile.TileBelongToID))
+            {
+                scoreCollection[currectTile.TileBelongToID] += CalculateTileCurrectScore(currectTile);
+            }
+        }
+    }
+    /// <summary>
+    /// 具体计算单个方块实际上输出的能量，目前只有最基本的，后续补充TODO
+    /// </summary>
+    /// <param name="tile"></param>
+    /// <returns></returns>
+    private float CalculateTileCurrectScore(BaseTile tile)
+    {
+        return tile.BaseMergeScore;
+    }
+    /// <summary>
+    /// 重新构建scoreCollection
+    /// </summary>
+    private void ReInitScoreCollection()
+    {
+        scoreCollection.Clear();
+        foreach (var playerID in GetAllPlayerIDs())
+        {
+            scoreCollection.Add(playerID, 0);
+        }
+    }
+
+    /// <summary>
+    /// 广播一个合并事件，未具体实现TODO
+    /// </summary>
+    private void BroadcastTileMergeEvent()
+    {
+        
+    }
+    
+    #endregion
+
+
+    #region Tile属性计算相关
+    
+    
+
+    #endregion
+
+
+
+    #region 获取与玩家相关属性
+
+    /// <summary>
+    /// 获取所有的玩家ID，未具体实现TODO
+    /// </summary>
+    /// <returns></returns>
+    public List<int> GetAllPlayerIDs()
+    {
+        return new[] { 0, 1 }.ToList();
     }
 
     #endregion

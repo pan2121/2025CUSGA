@@ -13,12 +13,12 @@ TagManager:
   - UI
   - 
   - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
+  - CommonTile
+  - SolidTile
+  - Character
+  - FlyableEntity
+  - PlacedProp
+  - TimeBoundProp
   - 
   - 
   - 
