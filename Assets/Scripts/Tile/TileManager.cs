@@ -75,7 +75,7 @@ public class TileManager : ManagerSingleton<TileManager>,IManager,IAssemblyForea
 
     public void FixedUpdate()
     {
-        RuleTile<>
+    //    RuleTile<>
     }
 
     public void OnDestroy()
