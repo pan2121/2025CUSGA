@@ -11,10 +11,6 @@ public class InHouseUI : UIPanel
     private Text player1NameText;
     [AutoUIElement("Panel1/GameObject1/Image")]
     private Image player1Headshot;
-    [AutoUIElement("Panel1/GameObject2/Image1")]
-    private Image player1HealthImage;
-    [AutoUIElement("Panel1/GameObject2/Image2")]
-    private Button player1EnergyImage;
     [AutoUIElement("Panel1/GameObject3")]
     private GameObject player1SkillSlotsObject;
     //玩家2
@@ -22,16 +18,13 @@ public class InHouseUI : UIPanel
     private Text player2NameText;
     [AutoUIElement("Panel2/GameObject1/Image")]
     private Image player2Headshot;
-    [AutoUIElement("Panel2/GameObject2/Image1")]
-    private Image player2HealthImage;
-    [AutoUIElement("Panel2/GameObject2/Image2")]
-    private Button player2EnergyImage;
+
     [AutoUIElement("Panel2/GameObject3")]
     private GameObject player2SkillSlotsObject;
+    
     public override void InitUIPanel()
     {
         base.InitUIPanel();
-        //获取名称，头像（暂时无此需求）
     }
     public override void Open()
     {

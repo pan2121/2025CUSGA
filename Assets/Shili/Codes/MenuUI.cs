@@ -6,7 +6,7 @@ using UnityEngine.UI;
 [UIPanelSetting(EUILayer.Bottom, 0, true, EAssetLoadMode.Resources, "Assets/Shili/Prefab/BasePanel")]
 public class MenuUI : UIPanel
 {
-    /*[AutoUIElement("Panel/GameObject/StartGame")]
+    [AutoUIElement("Panel/GameObject/StartGame")]
     private Button startGameButton;
     [AutoUIElement("Panel/GameObject/Setting")]
     private Button settingButton;
@@ -17,10 +17,10 @@ public class MenuUI : UIPanel
     public override void InitUIPanel()
     {
         base.InitUIPanel();
-       // startGameButton.onClick.AddListener(OnOpenGame);
-       // settingButton.onClick.AddListener(OnOpenSetting);
-       // aboutOurButton.onClick.AddListener(OnOpenAboutOur);
-       // exitGameButton.onClick.AddListener(OnOpenExitGame);
+        // startGameButton.onClick.AddListener(OnOpenGame);
+        // settingButton.onClick.AddListener(OnOpenSetting);
+        // aboutOurButton.onClick.AddListener(OnOpenAboutOur);
+        // exitGameButton.onClick.AddListener(OnOpenExitGame);
     }
     public override void Open()
     {
@@ -48,5 +48,5 @@ public class MenuUI : UIPanel
     {
         Debug.Log("ÍË³öÓÎÏ·");
         Application.Quit();
-    }*/
+    }
 }

@@ -7,7 +7,7 @@ public class UpdataSkillSlot : MonoBehaviour
 {
     public Transform player1Object;
     public Transform player2Object;
-    public string prefabPath = "Assets/Prefabs/MyPrefab.prefab";
+    public string prefabPath = "Assets/Shili/Prefab/SKillPrefab/Skill.prefab";
     private GameObject prefab;
     private void Start()
     {

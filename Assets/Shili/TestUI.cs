@@ -7,6 +7,6 @@ public class TestUI : MonoBehaviour
 {
     private void Awake()
     {
-        UIManager.Instance.GetUIPanel<MenuUI>();
+        UIManager.Instance.GetUIPanel<InHouseUI>();
     }
 }

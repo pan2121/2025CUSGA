@@ -189,12 +189,14 @@ namespace ilsFramework
                 
                 if (uiPanelGameObject)
                 {
+                    111.LogSelf();
                     var goInstance=  GameObject.Instantiate(uiPanelGameObject);
                     instance.UIPanelObject = goInstance;
                     if (goInstance.TryGetComponent<CanvasGroup>(out var canvasGroup))
                         instance.UIPanelCanvasGroup = canvasGroup;
                     else
                         throw new ArgumentException($"组件CanvasGroup不存在对应资源:{setting.LoadAssetStr}|加载模式:{setting.AssetLoadMode}上");
+                        
                     
                     if (goInstance.TryGetComponent<Canvas>(out var canvas))
                         instance.Canvas = canvas;
@@ -294,6 +296,7 @@ namespace ilsFramework
                 }
                 needAddToDic.Add((type, instance));
                 instance.InitUIPanel();
+                instance.LogSelf();
                 instance.Close();
                 return instance as T;
             }
